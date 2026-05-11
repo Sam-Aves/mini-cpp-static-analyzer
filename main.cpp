@@ -1,5 +1,9 @@
-
-#include <bits/stdc++.h>
+#include <iostream>
+#include <vector>
+#include <string>
+#include <map>
+#include <set>
+#include <stack>
 using namespace std;
 
 // ---------- Token ----------
@@ -63,7 +67,7 @@ vector<Token> lexer(const vector<string> &lines)
 {
     vector<Token> tokens;
 
-    for (int lineNo = 0; lineNo < lines.size(); lineNo++)
+    for (int lineNo = 0; lineNo < (int)lines.size(); lineNo++)
     {
         string line = lines[lineNo];
         string originalLine = line;
@@ -74,7 +78,11 @@ vector<Token> lexer(const vector<string> &lines)
             line = line.substr(0, commentPos);
 
         // Trim trailing spaces
-        line.erase(line.find_last_not_of(" \t") + 1);
+        size_t lastNonSpace = line.find_last_not_of(" \t");
+        if (lastNonSpace != string::npos)
+            line = line.substr(0, lastNonSpace + 1);
+        else
+            line = "";
 
         if (line.empty())
             continue;
@@ -86,7 +94,7 @@ vector<Token> lexer(const vector<string> &lines)
 
         for (int i = 0; i <= (int)line.size(); i++)
         {
-            char ch = (i < line.size()) ? line[i] : ' ';
+            char ch = (i < (int)line.size()) ? line[i] : ' ';
 
             // ---------- STRING LITERAL ----------
             if (ch == '"')
@@ -95,10 +103,10 @@ vector<Token> lexer(const vector<string> &lines)
                 int startCol = i + 1;
                 i++;
 
-                while (i < line.size() && line[i] != '"')
+                while (i < (int)line.size() && line[i] != '"')
                     str += line[i++];
 
-                if (i >= line.size())
+                if (i >= (int)line.size())
                     report(lexicalErrors, "Unterminated string literal", lineNo + 1, originalLine, startCol);
                 else
                     tokens.push_back({str, STRING_LITERAL, lineNo + 1, startCol});
@@ -113,7 +121,7 @@ vector<Token> lexer(const vector<string> &lines)
                 int startCol = i + 1;
                 i++;
 
-                if (i < line.size() && i + 1 < line.size() && line[i + 1] == '\'')
+                if (i < (int)line.size() && i + 1 < (int)line.size() && line[i + 1] == '\'')
                 {
                     str += line[i];
                     tokens.push_back({str, CHAR_LITERAL, lineNo + 1, startCol});
@@ -136,7 +144,7 @@ vector<Token> lexer(const vector<string> &lines)
             {
                 if (!word.empty())
                 {
-                    int startCol = i - word.size() + 1;
+                    int startCol = i - (int)word.size() + 1;
 
                     bool isNumber = true;
                     int dotCount = 0;
@@ -174,7 +182,7 @@ vector<Token> lexer(const vector<string> &lines)
                 {
                     string op(1, ch);
 
-                    if (i + 1 < line.size())
+                    if (i + 1 < (int)line.size())
                     {
                         char next = line[i + 1];
 
@@ -218,6 +226,7 @@ vector<Token> lexer(const vector<string> &lines)
 
     return tokens;
 }
+
 // ---------- Type Utilities ----------
 string inferLiteralType(const Token &t)
 {
@@ -242,15 +251,13 @@ bool isTypeCompatible(const string &lhs, const string &rhs)
         return true;
     if (lhs == "double" && (rhs == "int" || rhs == "float"))
         return true;
-    // int can take char
     if (lhs == "int" && rhs == "char")
         return true;
-
-    // char only accepts char
     if (lhs == "char" && rhs == "char")
         return true;
     return false;
 }
+
 bool isOpening(const string &s)
 {
     return s == "{" || s == "(" || s == "[";
@@ -271,18 +278,11 @@ bool isMatching(const string &open, const string &close)
 // ---------- Parser + Semantic Analyzer ----------
 void parse(vector<Token> &tokens, const vector<string> &lines)
 {
-    // stack<Token> braceStack;
     stack<Token> delimiterStack;
 
-    vector<pair<int, int>> ifBraces;
-    // Track which lines have braces
-    vector<int> openingBraceLines;
-    vector<int> closingBraceLines;
-
-    // First, collect all brace information
-    for (int i = 0; i < tokens.size(); i++)
+    // Pass 1: bracket matching
+    for (int i = 0; i < (int)tokens.size(); i++)
     {
-
         Token t = tokens[i];
         if (isOpening(t.value))
         {
@@ -320,15 +320,15 @@ void parse(vector<Token> &tokens, const vector<string> &lines)
         }
     }
 
-    // Now parse for other errors
-    for (int i = 0; i < tokens.size(); i++)
+    // Pass 2: declarations, type checks, runtime checks
+    for (int i = 0; i < (int)tokens.size(); i++)
     {
         Token t = tokens[i];
 
         // Variable declarations
         if (t.type == KEYWORD && (t.value == "int" || t.value == "float" || t.value == "double" || t.value == "char" || t.value == "string"))
         {
-            if (i + 1 >= tokens.size() || tokens[i + 1].type != IDENTIFIER)
+            if (i + 1 >= (int)tokens.size() || tokens[i + 1].type != IDENTIFIER)
             {
                 report(syntaxErrors,
                        "Invalid declaration: expected identifier after type",
@@ -336,11 +336,11 @@ void parse(vector<Token> &tokens, const vector<string> &lines)
                        lines[t.line - 1],
                        t.col);
             }
-            if (i + 1 < tokens.size() && tokens[i + 1].type == IDENTIFIER)
+            if (i + 1 < (int)tokens.size() && tokens[i + 1].type == IDENTIFIER)
             {
-                // Check if this is a function declaration (has parentheses)
+                // Check if this is a function declaration
                 bool isFunction = false;
-                for (int j = i + 2; j < tokens.size() && tokens[j].line == t.line; j++)
+                for (int j = i + 2; j < (int)tokens.size() && tokens[j].line == t.line; j++)
                 {
                     if (tokens[j].value == "(")
                     {
@@ -357,20 +357,20 @@ void parse(vector<Token> &tokens, const vector<string> &lines)
                     int size = -1;
 
                     // Array declaration
-                    if (i + 2 < tokens.size() && tokens[i + 2].value == "[")
+                    if (i + 2 < (int)tokens.size() && tokens[i + 2].value == "[")
                     {
-                        if (i + 3 < tokens.size() && tokens[i + 3].type == NUMBER)
+                        if (i + 3 < (int)tokens.size() && tokens[i + 3].type == NUMBER)
                         {
                             size = stoi(tokens[i + 3].value);
                         }
-                        if (i + 4 >= tokens.size() || tokens[i + 4].value != "]")
+                        if (i + 4 >= (int)tokens.size() || tokens[i + 4].value != "]")
                         {
                             report(syntaxErrors, "Expected closing bracket for array", tokens[i + 2].line,
                                    lines[tokens[i + 2].line - 1], tokens[i + 2].col);
                         }
                     }
 
-                    // Check redeclaration
+                    // Redeclaration check
                     if (symbolTable.count(varName) && symbolTable[varName].scopeLevel == currentScope)
                     {
                         report(semanticErrors, "Redeclaration of variable '" + varName + "'",
@@ -381,17 +381,15 @@ void parse(vector<Token> &tokens, const vector<string> &lines)
                         symbolTable[varName] = {t.value, false, false, currentScope, size};
                     }
 
-                    string line = lines[t.line - 1];
+                    string codeLine = lines[t.line - 1];
+                    codeLine.erase(codeLine.find_last_not_of(" \t\n\r") + 1);
 
-                    // trim whitespace
-                    line.erase(line.find_last_not_of(" \t\n\r") + 1);
-
-                    if (!line.empty() && line.back() != ';' &&
-                        line.back() != '{' &&
-                        line.back() != '}' &&
-                        line.find("if") != 0 &&
-                        line.find("while") != 0 &&
-                        line.find("for") != 0)
+                    if (!codeLine.empty() && codeLine.back() != ';' &&
+                        codeLine.back() != '{' &&
+                        codeLine.back() != '}' &&
+                        codeLine.find("if") != 0 &&
+                        codeLine.find("while") != 0 &&
+                        codeLine.find("for") != 0)
                     {
                         report(syntaxErrors,
                                "Missing semicolon",
@@ -403,11 +401,11 @@ void parse(vector<Token> &tokens, const vector<string> &lines)
             }
         }
 
-        // Type checking on assignment
-        if (t.type == IDENTIFIER && i + 1 < tokens.size() && tokens[i + 1].value == "=")
+        // Assignment: type checking + undeclared variable check
+        if (t.type == IDENTIFIER && i + 1 < (int)tokens.size() && tokens[i + 1].value == "=")
         {
             string varName = t.value;
-            // 🔴 UNDECLARED VARIABLE CHECK (ADD THIS)
+
             if (!symbolTable.count(varName))
             {
                 report(semanticErrors,
@@ -415,7 +413,6 @@ void parse(vector<Token> &tokens, const vector<string> &lines)
                        t.line,
                        lines[t.line - 1],
                        t.col);
-                // stop further checks for this line
             }
 
             if (symbolTable.count(varName))
@@ -423,8 +420,7 @@ void parse(vector<Token> &tokens, const vector<string> &lines)
                 symbolTable[varName].used = true;
                 symbolTable[varName].initialized = true;
 
-                // Find the RHS value
-                for (int j = i + 2; j < tokens.size() && tokens[j].line == t.line; j++)
+                for (int j = i + 2; j < (int)tokens.size() && tokens[j].line == t.line; j++)
                 {
                     if (tokens[j].type == STRING_LITERAL || tokens[j].type == NUMBER || tokens[j].type == CHAR_LITERAL)
                     {
@@ -442,10 +438,10 @@ void parse(vector<Token> &tokens, const vector<string> &lines)
             }
         }
 
-        // Division by zero check
-        if (t.value == "/" && i + 1 < tokens.size())
+        // Division by zero
+        if (t.value == "/" && i + 1 < (int)tokens.size())
         {
-            for (int j = i + 1; j < tokens.size() && tokens[j].line == t.line; j++)
+            for (int j = i + 1; j < (int)tokens.size() && tokens[j].line == t.line; j++)
             {
                 if (tokens[j].type == NUMBER && tokens[j].value == "0")
                 {
@@ -457,12 +453,11 @@ void parse(vector<Token> &tokens, const vector<string> &lines)
             }
         }
 
-        // Array bounds check - ONLY on array access, not declaration
-        if (t.type == IDENTIFIER && i + 1 < tokens.size() && tokens[i + 1].value == "[")
+        // Array bounds check (access only, not declaration)
+        if (t.type == IDENTIFIER && i + 1 < (int)tokens.size() && tokens[i + 1].value == "[")
         {
             string varName = t.value;
 
-            // Skip if this is an array declaration
             bool isDeclaration = false;
             if (i > 0 && tokens[i - 1].type == KEYWORD &&
                 (tokens[i - 1].value == "int" || tokens[i - 1].value == "float" ||
@@ -473,8 +468,7 @@ void parse(vector<Token> &tokens, const vector<string> &lines)
 
             if (!isDeclaration && symbolTable.count(varName) && symbolTable[varName].size > 0)
             {
-                // Find the index
-                for (int j = i + 2; j < tokens.size() && tokens[j].line == t.line && tokens[j].value != "]"; j++)
+                for (int j = i + 2; j < (int)tokens.size() && tokens[j].line == t.line && tokens[j].value != "]"; j++)
                 {
                     if (tokens[j].type == NUMBER)
                     {
@@ -491,7 +485,7 @@ void parse(vector<Token> &tokens, const vector<string> &lines)
         }
     }
 
-    // Also check general unmatched braces (your existing code)
+    // Report any unclosed delimiters
     while (!delimiterStack.empty())
     {
         Token open = delimiterStack.top();
@@ -518,15 +512,14 @@ void displayIssues()
             cout << "Line " << e.line << ": " << e.message << "\n";
             if (!e.codeLine.empty())
             {
-                // Clean up the code line
                 string cleanLine = e.codeLine;
                 size_t commentPos = cleanLine.find("//");
                 if (commentPos != string::npos)
-                {
                     cleanLine = cleanLine.substr(0, commentPos);
-                }
-                // Trim
-                cleanLine.erase(cleanLine.find_last_not_of(" \t") + 1);
+                size_t last = cleanLine.find_last_not_of(" \t");
+                if (last != string::npos)
+                    cleanLine = cleanLine.substr(0, last + 1);
+
                 cout << "  >> " << cleanLine << "\n";
 
                 if (e.col > 0)
@@ -546,7 +539,7 @@ void displayIssues()
     printSection("Runtime Errors", runtimeErrors, "\033[1;31m");
     printSection("Warnings", warnings, "\033[1;33m");
 
-    int totalErrors = lexicalErrors.size() + syntaxErrors.size() + semanticErrors.size() + runtimeErrors.size();
+    int totalErrors = (int)(lexicalErrors.size() + syntaxErrors.size() + semanticErrors.size() + runtimeErrors.size());
     cout << "\n\033[1;36m==== Summary ====\033[0m\n";
     cout << "Total Errors: " << totalErrors << "\n";
     cout << "Total Warnings: " << warnings.size() << "\n";
@@ -574,9 +567,9 @@ int main()
     displayIssues();
 
     if (lexicalErrors.empty() && syntaxErrors.empty() && semanticErrors.empty() && runtimeErrors.empty())
-        cout << "\n\033[1;32mNo errors detected. \033[0m\n";
+        cout << "\n\033[1;32mNo errors detected.\033[0m\n";
     else
-        cout << "\n\033[1;31mError detection complete. \033[0m\n";
+        cout << "\n\033[1;31mError detection complete.\033[0m\n";
 
     return 0;
 }
