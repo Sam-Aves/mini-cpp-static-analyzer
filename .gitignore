@@ -1,0 +1,9 @@
+# Compiled binaries
+*.o
+*.out
+*.exe
+analyzer
+
+# VS Code / IDE
+.vscode/
+.idea/
