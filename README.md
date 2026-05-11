@@ -125,5 +125,6 @@ mini-cpp-static-analyzer/
 
 ## Author
 
-**Asliraf** — IIUC, CSE  
+Asliraf Samaylan 
 Compiler Lab Course
+Dept of CSE, IIUC 
